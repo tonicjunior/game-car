@@ -124,9 +124,9 @@ class playGame extends Phaser.Scene {
       }
     }
 
-    this.addCar(450, 300);
-    this.addOpponentCar(250, 300);
-    this.startOpponentCarMovement();
+    this.addCar(250, 300);
+    // this.addOpponentCar(10, 300);
+    // this.startOpponentCarMovement();
 
     this.isAccelerating = false;
 
@@ -295,16 +295,12 @@ class playGame extends Phaser.Scene {
 
   startOpponentCarMovement() {
     const movementInterval = 100;
-    const opponentCarSpeed = 0.15;
+    const opponentCarSpeed = 0.2;
     this.time.addEvent({
       delay: movementInterval,
       loop: true,
       callback: () => {
-        if (
-          this.opponentCar &&
-          this.opponentFrontWheel &&
-          this.opponentRearWheel
-        ) {
+        if (this.opponentFrontWheel && this.opponentRearWheel) {
           this.matter.body.setAngularVelocity(
             this.opponentFrontWheel,
             opponentCarSpeed
@@ -442,11 +438,11 @@ class playGame extends Phaser.Scene {
 
     this.matter.world.add(this.opponentCarBody);
 
-    this.opponentCar = this.matter.add.rectangle(posX, posY - 40, 30, 30, {
-      friction: 1,
-      restitution: 0,
-      label: "opponentDiamond", // Etiqueta do diamante do adversário
-    });
+    // this.opponentCar = this.matter.add.rectangle(posX, posY - 40, 30, 30, {
+    //   friction: 1,
+    //   restitution: 0,
+    //   label: "opponentDiamond", // Etiqueta do diamante do adversário
+    // });
 
     this.opponentFrontWheel = this.matter.add.circle(posX + 35, posY + 25, 30, {
       friction: 1,
