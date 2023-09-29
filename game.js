@@ -124,8 +124,8 @@ class playGame extends Phaser.Scene {
       }
     }
 
-    this.addCar(250, 300);
-    this.addOpponentCar(450, 300);
+    this.addCar(450, 300);
+    this.addOpponentCar(250, 300);
     this.startOpponentCarMovement();
 
     this.isAccelerating = false;
