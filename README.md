@@ -1,3 +1,3 @@
 # game-car
 phaser game
-#LINK https://tonicjunior.github.io/game-ca
+#LINK https://tonicjunior.github.io/game-car
