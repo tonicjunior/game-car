@@ -1,10 +1,15 @@
 var game;
 
+const PLAYER_CATEGORY = 0x0002;
+const PLAYER_MASK = 0x0001;
+const OPPONENT_CATEGORY = 0x0004;
+const OPPONENT_MASK = 0x0001;
+
 var gameOptions = {
   startTerrainHeight: 0.5,
   amplitude: 100,
   slopeLength: [150, 350],
-  mountainsAmount: 10,
+  mountainsAmount: 3,
   slopesPerMountain: 10,
   carAcceleration: 0.01,
   maxCarVelocity: 1,
@@ -18,6 +23,9 @@ var player = "X";
 var slopePointsP = [];
 var pointXP = [];
 var start = false;
+
+var opponentCarCoord;
+var opponentCarAtt;
 
 var peerjsPeer = new Peer({
   host: "0.peerjs.com",
@@ -37,15 +45,19 @@ function connect(ID) {
   var aux = numPer;
   conn = peerjsPeer.connect(peerID);
   conn.on("open", function () {
-    console.log("conn", player);
     player = 0;
     conn.on("data", function (data) {
+      console.log("conn", data);
       if (data?.start) {
         slopePointsP = JSON.parse(data?.slopePointsP);
         pointXP = JSON.parse(data?.pointXP);
-        console.log("slopePointsP: ", slopePointsP);
-        console.log("pointXP: ", pointXP);
         start = true;
+      } else {
+        opponentCarAtt = true;
+        opponentCarCoord = {
+          x: JSON.parse(data?.opponentCarX),
+          y: JSON.parse(data?.opponentCarY),
+        };
       }
     });
   });
@@ -60,10 +72,14 @@ peerjsPeer.on("connection", function (peerjsConnection) {
       start: true,
     });
     player = numPer + 1;
-    console.log("peerjsConnection", player);
   });
   peerjsConnection.on("data", function (data) {
-    console.log("peerjsConnection-data", data);
+    console.log("peerjsConnection", data);
+    opponentCarAtt = true;
+    opponentCarCoord = {
+      x: JSON.parse(data?.opponentCarX),
+      y: JSON.parse(data?.opponentCarY),
+    };
   });
 });
 
@@ -96,7 +112,9 @@ class playGame extends Phaser.Scene {
   }
 
   create() {
+    this.camMove = true;
     this.alive = true;
+    this.gameOpen = true;
     this.bodyPool = [];
     this.bodyPoolId = [];
     this.mountainGraphics = [];
@@ -125,8 +143,7 @@ class playGame extends Phaser.Scene {
     }
 
     this.addCar(250, 300);
-    // this.addOpponentCar(10, 300);
-    // this.startOpponentCarMovement();
+    this.addOpponentCar(250, 300);
 
     this.isAccelerating = false;
 
@@ -149,8 +166,8 @@ class playGame extends Phaser.Scene {
       "collisionstart",
       function (event, bodyA, bodyB) {
         if (
-          (bodyA.label == "diamond" && bodyB.label != "car") ||
-          (bodyB.label == "diamond" && bodyA.label != "car")
+          (bodyA.label == "pista" && bodyB.label == "diamond") ||
+          (bodyB.label == "pista" && bodyA.label == "diamond")
         ) {
           this.alive = false;
           this.time.delayedCall(2000, this.restartGame, [], this);
@@ -170,10 +187,31 @@ class playGame extends Phaser.Scene {
       }
     );
     this.pressText.setOrigin(0.5);
-    this.input.on("pointerdown", this.onPointerDown, this);
+    this.click = true;
   }
   onPointerDown() {
-    this.pressText.destroy();
+    if (this.click) {
+      this.pressText.destroy();
+    }
+
+    if (peerjsConnectionG[numPer]) {
+      peerjsConnectionG[numPer].send({
+        opponentCarX: JSON.stringify(this.body.position.x),
+        opponentCarY: JSON.stringify(this.body.position.y),
+        start: false,
+      });
+    } else if (conn) {
+      conn.send({
+        opponentCarX: JSON.stringify(this.body.position.x),
+        opponentCarY: JSON.stringify(this.body.position.y),
+        start: false,
+      });
+    } else {
+      if (this.click) {
+        this.click = false;
+        this.startOpponentCarMovement();
+      }
+    }
   }
   generateTerrain(
     graphics,
@@ -186,7 +224,6 @@ class playGame extends Phaser.Scene {
     let slopes = 0;
 
     if (slopePoints.length == 0) {
-      console.log("slopePoints vazio");
       let slopeLength = Phaser.Math.Between(
         gameOptions.slopeLength[0],
         gameOptions.slopeLength[1]
@@ -226,7 +263,6 @@ class playGame extends Phaser.Scene {
         pointX++;
       }
     }
-    // console.log(slopePoints);
     let simpleSlope = this.simplify(slopePoints, 1, true);
     graphics.x = mountainStart.x;
     graphics.clear();
@@ -266,10 +302,15 @@ class playGame extends Phaser.Scene {
           distance,
           10,
           {
+            label: "pista",
             isStatic: true,
             angle: angle,
             friction: 1,
             restitution: 0,
+            collisionFilter: {
+              category: 11,
+              mask: 11,
+            },
           }
         );
       } else {
@@ -295,7 +336,7 @@ class playGame extends Phaser.Scene {
 
   startOpponentCarMovement() {
     const movementInterval = 100;
-    const opponentCarSpeed = 0.2;
+    const opponentCarSpeed = 0.28;
     this.time.addEvent({
       delay: movementInterval,
       loop: true,
@@ -315,56 +356,65 @@ class playGame extends Phaser.Scene {
   }
 
   addCar(posX, posY) {
-    let floor = Phaser.Physics.Matter.Matter.Bodies.rectangle(
-      posX,
-      posY,
-      100,
-      10,
+    const rampVertices = [
+      { x: -50, y: 0 },
+      { x: -50, y: -30 },
+      { x: -40, y: -15 },
+      { x: 40, y: -15 },
+      { x: 50, y: -30 },
+      { x: 50, y: 0 },
+    ];
+    const diamondInitialX = posX;
+    const diamondInitialY = posY - 80;
+
+    this.diamond = this.matter.add.rectangle(
+      diamondInitialX,
+      diamondInitialY,
+      30,
+      30,
       {
-        label: "car",
-      }
-    );
-    let rightBarrier = Phaser.Physics.Matter.Matter.Bodies.rectangle(
-      posX + 45,
-      posY - 15,
-      10,
-      20,
-      {
-        label: "car",
-      }
-    );
-    let leftBarrier = Phaser.Physics.Matter.Matter.Bodies.rectangle(
-      posX - 45,
-      posY - 15,
-      10,
-      20,
-      {
-        label: "car",
+        friction: 1,
+        restitution: 0,
+        label: "diamond",
+        collisionFilter: {
+          category: 1,
+          mask: PLAYER_CATEGORY,
+        },
       }
     );
 
-    this.body = Phaser.Physics.Matter.Matter.Body.create({
-      parts: [floor, leftBarrier, rightBarrier],
+    this.body = this.matter.add.fromVertices(posX, posY, rampVertices, {
       friction: 1,
       restitution: 0,
+      label: "car",
+      collisionFilter: {
+        category: PLAYER_CATEGORY,
+        mask: PLAYER_MASK,
+      },
     });
 
-    this.matter.world.add(this.body);
-
-    this.diamond = this.matter.add.rectangle(posX, posY - 40, 30, 30, {
-      friction: 1,
-      restitution: 0,
-      label: "diamond",
+    this.bodyCarGraphics = this.add.graphics({
+      lineStyle: { width: 3, color: 0xff0000 },
     });
+    this.bodyCarGraphics.strokePoints(rampVertices, true);
+    this.add.existing(this.bodyCarGraphics);
 
     this.frontWheel = this.matter.add.circle(posX + 35, posY + 25, 30, {
       friction: 1,
       restitution: 0,
+      collisionFilter: {
+        category: PLAYER_CATEGORY,
+        mask: PLAYER_MASK,
+      },
     });
 
     this.rearWheel = this.matter.add.circle(posX - 35, posY + 25, 30, {
       friction: 1,
       restitution: 0,
+      collisionFilter: {
+        category: PLAYER_CATEGORY,
+        mask: PLAYER_MASK,
+      },
     });
 
     this.matter.add.constraint(this.body, this.frontWheel, 40, 0, {
@@ -373,6 +423,7 @@ class playGame extends Phaser.Scene {
         y: 10,
       },
     });
+
     this.matter.add.constraint(this.body, this.frontWheel, 40, 0, {
       pointA: {
         x: 45,
@@ -386,12 +437,14 @@ class playGame extends Phaser.Scene {
         y: 10,
       },
     });
+
     this.matter.add.constraint(this.body, this.rearWheel, 40, 0, {
       pointA: {
         x: -45,
         y: 10,
       },
     });
+
     this.playerText = this.add.text(posX, posY - 60, "Você", {
       fontFamily: "Arial",
       fontSize: "24px",
@@ -402,59 +455,60 @@ class playGame extends Phaser.Scene {
   }
 
   addOpponentCar(posX, posY) {
-    let floor = Phaser.Physics.Matter.Matter.Bodies.rectangle(
+    if (this.opponentCarBody) {
+      this.matter.world.remove(this.opponentCarBody); // Remova o corpo do carro do adversário existente
+      this.matter.world.remove(this.opponentFrontWheel); // Remova a roda dianteira do adversário existente
+      this.matter.world.remove(this.opponentRearWheel); // Remova a roda traseira do adversário existente
+
+      this.matter.world.removeConstraint(this.constraintOpponentA);
+      this.matter.world.removeConstraint(this.constraintOpponentB);
+      this.matter.world.removeConstraint(this.constraintOpponentC);
+      this.matter.world.removeConstraint(this.constraintOpponentD);
+    }
+
+    const rampVertices = [
+      { x: -50, y: 0 },
+      { x: -50, y: -30 },
+      { x: -40, y: -15 },
+      { x: 40, y: -15 },
+      { x: 50, y: -30 },
+      { x: 50, y: 0 },
+    ];
+
+    this.opponentCarBody = this.matter.add.fromVertices(
       posX,
       posY,
-      100,
-      10,
+      rampVertices,
       {
+        friction: 1,
+        restitution: 0,
         label: "opponentCar",
+        collisionFilter: {
+          category: OPPONENT_CATEGORY,
+          mask: OPPONENT_MASK,
+        },
       }
     );
-    let rightBarrier = Phaser.Physics.Matter.Matter.Bodies.rectangle(
-      posX + 45,
-      posY - 15,
-      10,
-      20,
-      {
-        label: "opponentCar",
-      }
-    );
-    let leftBarrier = Phaser.Physics.Matter.Matter.Bodies.rectangle(
-      posX - 45,
-      posY - 15,
-      10,
-      20,
-      {
-        label: "opponentCar",
-      }
-    );
-
-    this.opponentCarBody = Phaser.Physics.Matter.Matter.Body.create({
-      parts: [floor, leftBarrier, rightBarrier],
-      friction: 1,
-      restitution: 0,
-    });
-
-    this.matter.world.add(this.opponentCarBody);
-
-    // this.opponentCar = this.matter.add.rectangle(posX, posY - 40, 30, 30, {
-    //   friction: 1,
-    //   restitution: 0,
-    //   label: "opponentDiamond", // Etiqueta do diamante do adversário
-    // });
 
     this.opponentFrontWheel = this.matter.add.circle(posX + 35, posY + 25, 30, {
       friction: 1,
       restitution: 0,
+      collisionFilter: {
+        category: PLAYER_CATEGORY,
+        mask: OPPONENT_MASK,
+      },
     });
 
     this.opponentRearWheel = this.matter.add.circle(posX - 35, posY + 25, 30, {
       friction: 1,
       restitution: 0,
+      collisionFilter: {
+        category: PLAYER_CATEGORY,
+        mask: OPPONENT_MASK,
+      },
     });
 
-    this.matter.add.constraint(
+    this.constraintOpponentA = this.matter.add.constraint(
       this.opponentCarBody,
       this.opponentFrontWheel,
       40,
@@ -466,7 +520,8 @@ class playGame extends Phaser.Scene {
         },
       }
     );
-    this.matter.add.constraint(
+
+    this.constraintOpponentB = this.matter.add.constraint(
       this.opponentCarBody,
       this.opponentFrontWheel,
       40,
@@ -479,7 +534,7 @@ class playGame extends Phaser.Scene {
       }
     );
 
-    this.matter.add.constraint(
+    this.constraintOpponentC = this.matter.add.constraint(
       this.opponentCarBody,
       this.opponentRearWheel,
       40,
@@ -491,7 +546,8 @@ class playGame extends Phaser.Scene {
         },
       }
     );
-    this.matter.add.constraint(
+
+    this.constraintOpponentD = this.matter.add.constraint(
       this.opponentCarBody,
       this.opponentRearWheel,
       40,
@@ -514,6 +570,7 @@ class playGame extends Phaser.Scene {
   }
 
   accelerate() {
+    this.onPointerDown();
     this.isAccelerating = true;
   }
 
@@ -522,7 +579,16 @@ class playGame extends Phaser.Scene {
   }
 
   update() {
-    this.cameras.main.scrollX = this.body.position.x - game.config.width / 8;
+    if (opponentCarAtt) {
+      opponentCarAtt = false;
+      this.addOpponentCar(opponentCarCoord.x, opponentCarCoord.y + 9);
+    }
+    this.bodyCarGraphics.x = this.body.position.x;
+    this.bodyCarGraphics.y = this.body.position.y + 9;
+    this.bodyCarGraphics.rotation = this.body.angle;
+
+    if (this.camMove)
+      this.cameras.main.scrollX = this.body.position.x - game.config.width / 8;
 
     if (this.isAccelerating && this.alive) {
       let velocity = this.frontWheel.angularSpeed + gameOptions.carAcceleration;
@@ -545,6 +611,7 @@ class playGame extends Phaser.Scene {
       }.bind(this)
     );
     if (!this.alive) {
+      this.decelerate();
       this.info.x = this.cameras.main.scrollX + 100;
       this.info.setText("A encomenda caiu");
     }
@@ -561,6 +628,27 @@ class playGame extends Phaser.Scene {
 
     this.playerText.x = this.body.position.x;
     this.playerText.y = this.body.position.y - 60;
+
+    if (
+      (this.cameras.main.scrollX >
+        this.mountainGraphics[this.mountainGraphics.length - 1].x +
+          this.mountainGraphics[this.mountainGraphics.length - 1].width ||
+        this.opponentCarBody.position.x >
+          this.mountainGraphics[this.mountainGraphics.length - 1].x +
+            this.mountainGraphics[this.mountainGraphics.length - 1].width) &&
+      this.gameOpen &&
+      this.alive
+    ) {
+      this.gameOpen = false;
+      this.camMove = false;
+      this.info.x = this.cameras.main.scrollX + 300;
+      if (this.opponentCarBody.position.x > this.body.position.x) {
+        this.info.setText("Você Perdeu");
+      } else {
+        this.info.setText("Você Venceu");
+      }
+      this.time.delayedCall(2500, this.restartGame, [], this);
+    }
   }
 
   restartGame() {
