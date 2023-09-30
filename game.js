@@ -192,23 +192,7 @@ class playGame extends Phaser.Scene {
   onPointerDown() {
     if (this.click) {
       this.pressText.destroy();
-    }
-
-    if (peerjsConnectionG[numPer]) {
-      peerjsConnectionG[numPer].send({
-        opponentCarX: JSON.stringify(this.body.position.x),
-        opponentCarY: JSON.stringify(this.body.position.y),
-        start: false,
-      });
-    } else if (conn) {
-      conn.send({
-        opponentCarX: JSON.stringify(this.body.position.x),
-        opponentCarY: JSON.stringify(this.body.position.y),
-        start: false,
-      });
-    } else {
-      if (this.click) {
-        this.click = false;
+      if (!(peerjsConnectionG[numPer] || conn)) {
         this.startOpponentCarMovement();
       }
     }
@@ -336,7 +320,7 @@ class playGame extends Phaser.Scene {
 
   startOpponentCarMovement() {
     const movementInterval = 100;
-    const opponentCarSpeed = 0.28;
+    const opponentCarSpeed = 0.22;
     this.time.addEvent({
       delay: movementInterval,
       loop: true,
@@ -466,31 +450,47 @@ class playGame extends Phaser.Scene {
       this.matter.world.removeConstraint(this.constraintOpponentD);
     }
 
-    const rampVertices = [
-      { x: -50, y: 0 },
-      { x: -50, y: -30 },
-      { x: -40, y: -15 },
-      { x: 40, y: -15 },
-      { x: 50, y: -30 },
-      { x: 50, y: 0 },
-    ];
-
-    this.opponentCarBody = this.matter.add.fromVertices(
+    let floor = Phaser.Physics.Matter.Matter.Bodies.rectangle(
       posX,
       posY,
-      rampVertices,
+      100,
+      10,
       {
-        friction: 1,
-        restitution: 0,
         label: "opponentCar",
-        collisionFilter: {
-          category: OPPONENT_CATEGORY,
-          mask: OPPONENT_MASK,
-        },
+      }
+    );
+    let rightBarrier = Phaser.Physics.Matter.Matter.Bodies.rectangle(
+      posX + 45,
+      posY - 10,
+      10,
+      20,
+      {
+        label: "opponentCar",
+      }
+    );
+    let leftBarrier = Phaser.Physics.Matter.Matter.Bodies.rectangle(
+      posX - 45,
+      posY - 10,
+      10,
+      20,
+      {
+        label: "opponentCar",
       }
     );
 
-    this.opponentFrontWheel = this.matter.add.circle(posX + 35, posY + 25, 30, {
+    this.opponentCarBody = Phaser.Physics.Matter.Matter.Body.create({
+      parts: [floor, leftBarrier, rightBarrier],
+      friction: 1,
+      restitution: 0,
+      collisionFilter: {
+        category: OPPONENT_MASK,
+        mask: OPPONENT_MASK,
+      },
+    });
+
+    this.matter.world.add(this.opponentCarBody);
+
+    this.opponentFrontWheel = this.matter.add.circle(posX + 35, posY + 50, 30, {
       friction: 1,
       restitution: 0,
       collisionFilter: {
@@ -499,7 +499,7 @@ class playGame extends Phaser.Scene {
       },
     });
 
-    this.opponentRearWheel = this.matter.add.circle(posX - 35, posY + 25, 30, {
+    this.opponentRearWheel = this.matter.add.circle(posX - 35, posY + 50, 30, {
       friction: 1,
       restitution: 0,
       collisionFilter: {
@@ -559,14 +559,6 @@ class playGame extends Phaser.Scene {
         },
       }
     );
-
-    // this.opponentText = this.add.text(posX, posY - 60, "Adversário", {
-    //   fontFamily: "Arial",
-    //   fontSize: "24px",
-    //   color: "#ffffff",
-    //   align: "center",
-    // });
-    // this.opponentText.setOrigin(0.5);
   }
 
   accelerate() {
@@ -579,9 +571,23 @@ class playGame extends Phaser.Scene {
   }
 
   update() {
+    if (peerjsConnectionG[numPer]) {
+      peerjsConnectionG[numPer].send({
+        opponentCarX: JSON.stringify(this.body.position.x),
+        opponentCarY: JSON.stringify(this.body.position.y),
+        start: false,
+      });
+    } else if (conn) {
+      conn.send({
+        opponentCarX: JSON.stringify(this.body.position.x),
+        opponentCarY: JSON.stringify(this.body.position.y),
+        start: false,
+      });
+    }
+
     if (opponentCarAtt) {
       opponentCarAtt = false;
-      this.addOpponentCar(opponentCarCoord.x, opponentCarCoord.y + 9);
+      this.addOpponentCar(opponentCarCoord.x, opponentCarCoord.y);
     }
     this.bodyCarGraphics.x = this.body.position.x;
     this.bodyCarGraphics.y = this.body.position.y + 9;
