@@ -33,9 +33,11 @@ var peerjsPeer = new Peer({
 });
 
 peerjsPeer.on("open", function () {
-  if (!location.hash) {
+  if (!location.hash || location.search.includes("single")) {
     location.hash = peerjsPeer.id;
+    single = true;
   } else {
+    single = true;
     connect(location.hash.substring(1));
   }
 });
