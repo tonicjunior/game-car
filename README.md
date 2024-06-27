@@ -4,6 +4,5 @@
 
 # :sparkles: Game-car
 
-<a href="https://tonicjunior.github.io/game-car" target="_blank">MULTI</a>
-<a href="https://tonicjunior.github.io/game-car/?single" target="_blank">SINGLE</a>
-
+[MULTI](https://tonicjunior.github.io/game-car)
+[SINGLE](https://tonicjunior.github.io/game-car/?single)
