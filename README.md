@@ -6,6 +6,17 @@ Bem-vindo ao nosso incrível **Jogo de Carros** 2D, onde a competição e a habi
 
 O objetivo do jogo é simples: ser o primeiro a atravessar o terreno cheio de obstáculos e rampas, enquanto tenta evitar o impacto fatal (não se preocupe, o carro sempre vai te dar uma nova chance!). As montanhas são geradas de forma aleatória e as partidas acontecem em tempo real entre dois jogadores.
 
+## Links para Jogar
+
+- **[Multiplayer](https://tonicjunior.github.io/game-car)**: Jogue contra um amigo ou rival em tempo real.
+- **[Single Player](https://tonicjunior.github.io/game-car/?single)**: Jogue sozinho e desafie a si mesmo!
+
+- ## 📂 Links do Projeto
+- 
+   [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?logo=github)](https://github.com/tonicjunior/game-car) 
+   [![Investir](https://img.shields.io/badge/Investir%20no%20projeto-Informa%C3%A7%C3%B5es-4CAF50)](https://nubank.com.br/cobrar/3upen/672bafe3-8951-4aae-8e53-d86628e67a1a)
+  
+
 ## Como Jogar
 
 1. **Conecte-se a um adversário**: Se você está jogando em modo multiplayer, basta [clicar aqui para jogar multiplayer](https://tonicjunior.github.io/game-car) e enviar o ID do seu amigo ou usar o modo "single" para jogar sozinho.
@@ -13,16 +24,6 @@ O objetivo do jogo é simples: ser o primeiro a atravessar o terreno cheio de ob
 3. **Evite a colisão**: O terreno é traiçoeiro! Cuidado com as rampas e obstáculos que podem te desviar da rota. E lembre-se, as colisões podem ser fatais... mas calma, o jogo sempre tem um jeito de te dar uma segunda chance (ok, uma terceira também)!
 4. **Divirta-se**: Seja o mais rápido e não deixe seu adversário passar!
 
-
-## 📂 Links do Projeto
-
-   [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?logo=github)](https://github.com/tonicjunior/game-car) 
-   [![Investir](https://img.shields.io/badge/Investir%20no%20projeto-Informa%C3%A7%C3%B5es-4CAF50)](https://nubank.com.br/cobrar/3upen/672bafe3-8951-4aae-8e53-d86628e67a1a) 
-
-## Links para Jogar
-
-- **[Multiplayer](https://tonicjunior.github.io/game-car)**: Jogue contra um amigo ou rival em tempo real.
-- **[Single Player](https://tonicjunior.github.io/game-car/?single)**: Jogue sozinho e desafie a si mesmo!
 
 ## Funcionalidades
 
